@@ -17,17 +17,17 @@ abstract class Middleware implements MiddlewareInterface
     /**
      * @var CommandInterface
      */
-    private $command;
+    protected $command;
 
     /**
      * @var string
      */
-    private $agent_type;
+    protected $agent_type;
 
     /**
      * @var string
      */
-    private $agent_id;
+    protected $agent_id;
 
     /**
      * @param CommandInterface $command
