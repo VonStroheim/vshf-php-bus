@@ -66,6 +66,24 @@ class BusTest extends TestCase
 
     /**
      * @return void
+     * @covers \VSHF\Bus\Bus::addMiddleware
+     * @covers \VSHF\Bus\Bus::sortArrayByPriority
+     */
+    public function testAddMiddlewarePriority(): void
+    {
+        $bus = new Bus();
+        $this->assertNull($bus->addMiddleware(Middleware::class));
+        $this->assertNull($bus->addMiddleware('AnotherMiddleware', 99));
+        $this->assertNull($bus->addMiddleware('YetAnotherMiddleware'));
+        $this->assertContains(Middleware::class, $bus->getMiddlewares());
+        $this->assertContains('AnotherMiddleware', $bus->getMiddlewares());
+        $this->assertContains('YetAnotherMiddleware', $bus->getMiddlewares());
+        $this->assertCount(3, $bus->getMiddlewares());
+        $this->assertSame($bus->getMiddlewares(), [Middleware::class, 'YetAnotherMiddleware', 'AnotherMiddleware']);
+    }
+
+    /**
+     * @return void
      * @covers \VSHF\Bus\Bus::dispatch
      */
     public function testDispatchAuto(): void

@@ -15,9 +15,9 @@ $command = new MyCommand($someParamsIfAny);
 $bus->dispatch($command);
 ```
 
-The command class must have a corresponding handler class in the same directory/namespace.
+Each command class should have a corresponding handler class located in the same directory/namespace.
 
-For example, if I have a custom command *MyCommand.php*, there must be a *MyCommandHandler.php* in the same directory/namespace for the bus to call for.
+For instance, if you have a custom command named *MyCommand.php*, you should also include a *MyCommandHandler.php* file in the same directory/namespace. This allows the bus to call the appropriate handler for the command.
 
 ## Middleware
 
@@ -26,9 +26,38 @@ To register a middleware class:
 $bus->addMiddleware(MyMiddleware::class);
 ```
 
-The middleware class must implement *MiddlewareInterface*. It can run code both inside the *before* and *after* methods.
+The middleware class must implement *MiddlewareInterface*.
 
-Inside the *before* code, if provided, a call to *next* method must be performed at the end, **unless the execution of the command needs to be prevented**.
+```php
+class MyMiddleware implements \VSHF\Bus\MiddlewareInterface {
+
+    public function before() : void
+    {
+        // Code that runs before executing the command. It has access to:
+        //  $this->$command
+        //  $this->agent_type
+        //  $this->agent_id
+        
+        $this->next(); // If this call is omitted, the command execution is prevented.
+    }
+    
+    public function after() : void
+    {
+        // Code that runs after executing the command. It has access to:
+        //  $this->$command
+        //  $this->agent_type
+        //  $this->agent_id
+    }
+}
+```
+
+If you have multiple middleware classes and need to define their execution order, you can specify a priority for each middleware. This is useful, for example, when a middleware should be executed at the end of the middleware chain:
+
+```php
+// greater number means delayed execution, default is 0
+
+$bus->addMiddleware(MyMiddleware::class, 99);
+```
 
 ## License
 

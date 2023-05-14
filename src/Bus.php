@@ -35,10 +35,16 @@ class Bus implements BusInterface
 
     /**
      * @param string $middlewareClassName
+     * @param int    $queue Indicates the desired order (priority) of execution.
+     *                      If there is already a Middleware with the same priority,
+     *                      the latter will
      */
-    public function addMiddleware(string $middlewareClassName): void
+    public function addMiddleware(string $middlewareClassName, int $queue = 0): void
     {
-        $this->middlewares[] = $middlewareClassName;
+        if (isset($this->middlewares[ $middlewareClassName ])) {
+            throw new \UnexpectedValueException(sprintf('Middleware %s is already registered', $middlewareClassName));
+        }
+        $this->middlewares[ $middlewareClassName ] = $queue;
     }
 
     /**
@@ -63,7 +69,9 @@ class Bus implements BusInterface
 
         if ($handler instanceof HandlerInterface) {
 
-            foreach ($this->middlewares as $middlewareName) {
+            $sortedMiddlewares = self::sortArrayByPriority($this->middlewares);
+
+            foreach ($sortedMiddlewares as $middlewareName) {
                 if (!class_exists($middlewareName)) {
                     continue;
                 }
@@ -81,7 +89,7 @@ class Bus implements BusInterface
 
             $handler->dispatch($command);
 
-            foreach ($this->middlewares as $middlewareName) {
+            foreach ($sortedMiddlewares as $middlewareName) {
                 if (!class_exists($middlewareName)) {
                     continue;
                 }
@@ -106,6 +114,24 @@ class Bus implements BusInterface
 
     public function getMiddlewares(): array
     {
-        return $this->middlewares;
+        return self::sortArrayByPriority($this->middlewares);
+    }
+
+    private static function sortArrayByPriority($array): array
+    {
+        $priorities = [];
+        $strings    = [];
+
+        // Separate the priorities and strings into two separate arrays
+        foreach ($array as $string => $priority) {
+            $priorities[] = $priority;
+            $strings[]    = $string;
+        }
+
+        // Sort the strings based on their corresponding priorities
+        array_multisort($priorities, $strings);
+
+        // Return the sorted array of strings
+        return $strings;
     }
 }
