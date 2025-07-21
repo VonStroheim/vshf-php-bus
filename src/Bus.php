@@ -9,25 +9,15 @@ namespace VSHF\Bus;
  */
 class Bus implements BusInterface
 {
+    private array $subscriptions = [];
 
-    /**
-     * @var array
-     */
-    private $subscriptions = [];
-
-    /**
-     * @var array
-     */
-    private $middlewares = [];
+    private array $middlewares = [];
 
     public const AGENT_SYSTEM = 'system';
     public const AGENT_USER   = 'user';
     public const AGENT_APP    = 'app';
 
-    /**
-     * @param string $commandClassName
-     * @param string $handlerClassName
-     */
+
     public function subscribe(string $commandClassName, string $handlerClassName): void
     {
         $this->subscriptions[ $commandClassName ] = $handlerClassName;
@@ -54,7 +44,7 @@ class Bus implements BusInterface
      *
      * @return bool TRUE if the command is dispatched, FALSE otherwise
      */
-    public function dispatch(CommandInterface $command, string $agent_type = self::AGENT_SYSTEM, string $agent_id = NULL): bool
+    public function dispatch(CommandInterface $command, string $agent_type = self::AGENT_SYSTEM, string $agent_id = null): bool
     {
         $commandName = get_class($command);
         $handlerName = $commandName . 'Handler';
@@ -83,7 +73,7 @@ class Bus implements BusInterface
 
                 if (!$middleware->isNext()) {
                     // Preventing the command execution
-                    return FALSE;
+                    return false;
                 }
             }
 
@@ -100,7 +90,7 @@ class Bus implements BusInterface
                 $middleware->after();
             }
 
-            return TRUE;
+            return true;
 
         }
 

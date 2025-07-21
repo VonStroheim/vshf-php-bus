@@ -9,25 +9,13 @@ namespace VSHF\Bus;
  */
 abstract class Middleware implements MiddlewareInterface
 {
-    /**
-     * @var bool
-     */
-    private $next = FALSE;
+    private bool $next = false;
 
-    /**
-     * @var CommandInterface
-     */
-    protected $command;
+    protected CommandInterface $command;
 
-    /**
-     * @var string
-     */
-    protected $agent_type;
+    protected ?string $agent_type;
 
-    /**
-     * @var string
-     */
-    protected $agent_id;
+    protected ?string $agent_id;
 
     /**
      * @param CommandInterface $command
@@ -36,10 +24,9 @@ abstract class Middleware implements MiddlewareInterface
      */
     public function __construct(
         CommandInterface $command,
-        string           $agent_type = NULL,
-        string           $agent_id = NULL
-    )
-    {
+        string           $agent_type = null,
+        string           $agent_id = null
+    ) {
         $this->command    = $command;
         $this->agent_type = $agent_type;
         $this->agent_id   = $agent_id;
@@ -47,7 +34,7 @@ abstract class Middleware implements MiddlewareInterface
 
     public function next(): void
     {
-        $this->next = TRUE;
+        $this->next = true;
     }
 
     public function isNext(): bool

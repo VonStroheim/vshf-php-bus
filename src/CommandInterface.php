@@ -9,5 +9,4 @@ namespace VSHF\Bus;
  */
 interface CommandInterface
 {
-
 }
