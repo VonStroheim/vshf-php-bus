@@ -9,19 +9,27 @@ namespace VSHF\Bus;
  */
 class Bus implements BusInterface
 {
-    private array $subscriptions = [];
+    private array $commandSubscriptions = [];
+
+    private array $querySubscriptions = [];
 
     private array $middlewares = [];
 
-    public const AGENT_SYSTEM = 'system';
-    public const AGENT_USER   = 'user';
-    public const AGENT_APP    = 'app';
+    public const string AGENT_SYSTEM = 'system';
+    public const string AGENT_USER   = 'user';
+    public const string AGENT_APP    = 'app';
 
 
-    public function subscribe(string $commandClassName, string $handlerClassName): void
+    public function subscribeCommand(string $commandClassName, string $handlerClassName): void
     {
-        $this->subscriptions[ $commandClassName ] = $handlerClassName;
+        $this->commandSubscriptions[ $commandClassName ] = $handlerClassName;
     }
+
+    public function subscribeQuery(string $queryClassName, string $handlerClassName): void
+    {
+        $this->querySubscriptions[ $queryClassName ] = $handlerClassName;
+    }
+
 
     /**
      * @param string $middlewareClassName
@@ -49,15 +57,15 @@ class Bus implements BusInterface
         $commandName = get_class($command);
         $handlerName = $commandName . 'Handler';
         if (!class_exists($handlerName)) {
-            if (isset($this->subscriptions[ $commandName ]) && class_exists($this->subscriptions[ $commandName ])) {
-                $handlerName = $this->subscriptions[ $commandName ];
+            if (isset($this->commandSubscriptions[ $commandName ]) && class_exists($this->commandSubscriptions[ $commandName ])) {
+                $handlerName = $this->commandSubscriptions[ $commandName ];
             } else {
                 throw new \InvalidArgumentException(sprintf('Handler class %s not found for command %s', $handlerName, $commandName));
             }
         }
         $handler = new $handlerName();
 
-        if ($handler instanceof HandlerInterface) {
+        if ($handler instanceof CommandHandlerInterface) {
 
             $sortedMiddlewares = self::sortArrayByPriority($this->middlewares);
 
@@ -66,7 +74,7 @@ class Bus implements BusInterface
                     continue;
                 }
                 $middleware = new $middlewareName($command, $agent_type, $agent_id);
-                if (!$middleware instanceof Middleware) {
+                if (!$middleware instanceof MiddlewareInterface) {
                     continue;
                 }
                 $middleware->before();
@@ -84,7 +92,7 @@ class Bus implements BusInterface
                     continue;
                 }
                 $middleware = new $middlewareName($command, $agent_type, $agent_id);
-                if (!$middleware instanceof Middleware) {
+                if (!$middleware instanceof MiddlewareInterface) {
                     continue;
                 }
                 $middleware->after();
@@ -97,16 +105,34 @@ class Bus implements BusInterface
         throw new \InvalidArgumentException(sprintf('Class %s not an instance of Handler for command %s', $handlerName, $commandName));
     }
 
-    public function getSubscriptions(): array
+    /**
+     * @return array
+     */
+    public function getCommandSubscriptions(): array
     {
-        return $this->subscriptions;
+        return $this->commandSubscriptions;
     }
 
+    /**
+     * @return array
+     */
+    public function getQuerySubscriptions(): array
+    {
+        return $this->querySubscriptions;
+    }
+
+    /**
+     * @return array
+     */
     public function getMiddlewares(): array
     {
         return self::sortArrayByPriority($this->middlewares);
     }
 
+    /**
+     * @param $array
+     * @return array
+     */
     private static function sortArrayByPriority($array): array
     {
         $priorities = [];
@@ -123,5 +149,71 @@ class Bus implements BusInterface
 
         // Return the sorted array of strings
         return $strings;
+    }
+
+    /**
+     * @template TResult
+     * @param QueryInterface<TResult> $query
+     * @return TResult|null
+     */
+    public function ask(QueryInterface $query, string $agent_type = self::AGENT_SYSTEM, string $agent_id = null)
+    {
+        $queryName = get_class($query);
+        $handlerName = $queryName . 'Handler';
+        if (!class_exists($handlerName)) {
+            if (isset($this->querySubscriptions[ $queryName ]) && class_exists($this->querySubscriptions[ $queryName ])) {
+                $handlerName = $this->querySubscriptions[ $queryName ];
+            } else {
+                throw new \InvalidArgumentException(sprintf('Handler class %s not found for query %s', $handlerName, $queryName));
+            }
+        }
+        $handler = new $handlerName();
+
+        if ($handler instanceof QueryHandlerInterface) {
+
+            $sortedMiddlewares = self::sortArrayByPriority($this->middlewares);
+
+            foreach ($sortedMiddlewares as $middlewareName) {
+                if (!class_exists($middlewareName)) {
+                    continue;
+                }
+                $middleware = new $middlewareName($query, $agent_type, $agent_id);
+                if (!$middleware instanceof MiddlewareInterface) {
+                    continue;
+                }
+                $middleware->before();
+
+                if (!$middleware->isNext()) {
+                    // Preventing the command execution
+                    return null;
+                }
+            }
+
+            $result = $handler->ask($query);
+
+            $expectedType = $query->getResultType();
+
+            if (!$result instanceof $expectedType) {
+                throw new \RuntimeException(
+                    "Query Handler returned wrong type. Expected {$expectedType}, got " . get_class($result)
+                );
+            }
+
+            foreach ($sortedMiddlewares as $middlewareName) {
+                if (!class_exists($middlewareName)) {
+                    continue;
+                }
+                $middleware = new $middlewareName($query, $agent_type, $agent_id);
+                if (!$middleware instanceof MiddlewareInterface) {
+                    continue;
+                }
+                $middleware->after($result);
+            }
+
+            return $result;
+
+        }
+
+        throw new \InvalidArgumentException(sprintf('Class %s not an instance of Handler for query %s', $handlerName, $queryName));
     }
 }

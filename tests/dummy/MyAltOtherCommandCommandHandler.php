@@ -7,7 +7,8 @@ use VSHF\Bus\CommandInterface;
 /**
  * Dummy Alternative Command Handler for testing
  */
-class MyAltOtherCommandHandler implements \VSHF\Bus\HandlerInterface {
+class MyAltOtherCommandCommandHandler implements \VSHF\Bus\CommandHandlerInterface
+{
     public function dispatch(CommandInterface $command): void
     {
         // doing nothing

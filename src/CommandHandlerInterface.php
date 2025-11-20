@@ -3,16 +3,16 @@
 namespace VSHF\Bus;
 
 /**
- * Class HandlerInterface
+ * Class CommandHandlerInterface
  *
  * @package VSHF
  */
-interface HandlerInterface
+interface CommandHandlerInterface
 {
     /**
      * @param CommandInterface $command
      *
-     * @return mixed
+     * @return void
      */
     public function dispatch(CommandInterface $command): void;
 }

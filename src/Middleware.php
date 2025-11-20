@@ -11,23 +11,23 @@ abstract class Middleware implements MiddlewareInterface
 {
     private bool $next = false;
 
-    protected CommandInterface $command;
+    protected CommandInterface|QueryInterface $commandOrQuery;
 
     protected ?string $agent_type;
 
     protected ?string $agent_id;
 
     /**
-     * @param CommandInterface $command
+     * @param CommandInterface|QueryInterface $commandOrQuery
      * @param string|NULL      $agent_type
      * @param string|NULL      $agent_id
      */
     public function __construct(
-        CommandInterface $command,
+        CommandInterface|QueryInterface $commandOrQuery,
         string           $agent_type = null,
         string           $agent_id = null
     ) {
-        $this->command    = $command;
+        $this->commandOrQuery    = $commandOrQuery;
         $this->agent_type = $agent_type;
         $this->agent_id   = $agent_id;
     }
@@ -47,7 +47,11 @@ abstract class Middleware implements MiddlewareInterface
         $this->next();
     }
 
-    public function after(): void
+    /**
+     * @param mixed|null $result
+     * @return void
+     */
+    public function after(mixed $result = null): void
     {
     }
 }

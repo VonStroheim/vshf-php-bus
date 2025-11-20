@@ -2,33 +2,37 @@
 
 namespace VSHF\Bus\Tests;
 
+use PHPUnit\Framework\Attributes\CoversFunction;
 use VSHF\Bus\Bus;
 use PHPUnit\Framework\TestCase;
 use VSHF\Bus\CommandInterface;
-use VSHF\Bus\HandlerInterface;
+use VSHF\Bus\CommandHandlerInterface;
 use VSHF\Bus\Middleware;
-use VSHF\Bus\Tests\dummy\MyAltOtherCommandHandler;
+use VSHF\Bus\Tests\dummy\MyAltOtherCommandCommandHandler;
 use VSHF\Bus\Tests\dummy\MyCommand;
+use VSHF\Bus\Tests\dummy\MyMiddleware;
 use VSHF\Bus\Tests\dummy\MyOtherCommand;
+
+#[CoversFunction('getCommandSubscriptions')]
+#[CoversFunction('getMiddlewares')]
+#[CoversFunction('subscribe')]
+#[CoversFunction('addMiddleware')]
+#[CoversFunction('sortArrayByPriority')]
+#[CoversFunction('dispatch')]
 
 class BusTest extends TestCase
 {
-
-    private $middleware;
-
     /**
      * @return void
-     * @covers \VSHF\Bus\Bus::getSubscriptions
      */
     public function testGetSubscriptions(): void
     {
         $bus = new Bus();
-        $this->assertIsArray($bus->getSubscriptions());
+        $this->assertIsArray($bus->getCommandSubscriptions());
     }
 
     /**
      * @return void
-     * @covers \VSHF\Bus\Bus::getMiddlewares
      */
     public function testGetMiddlewares(): void
     {
@@ -38,23 +42,21 @@ class BusTest extends TestCase
 
     /**
      * @return void
-     * @covers \VSHF\Bus\Bus::subscribe
      */
     public function testSubscribe(): void
     {
         $bus     = new Bus();
         $command = \Mockery::mock(CommandInterface::class);
-        $handler = \Mockery::mock(HandlerInterface::class);
+        $handler = \Mockery::mock(CommandHandlerInterface::class);
 
-        $this->assertNull($bus->subscribe(get_class($command), get_class($handler)));
-        $this->assertContains(get_class($handler), $bus->getSubscriptions());
-        $this->assertArrayHasKey(get_class($command), $bus->getSubscriptions());
+        $this->assertNull($bus->subscribeCommand(get_class($command), get_class($handler)));
+        $this->assertContains(get_class($handler), $bus->getCommandSubscriptions());
+        $this->assertArrayHasKey(get_class($command), $bus->getCommandSubscriptions());
 
     }
 
     /**
      * @return void
-     * @covers \VSHF\Bus\Bus::addMiddleware
      */
     public function testAddMiddleware(): void
     {
@@ -66,9 +68,8 @@ class BusTest extends TestCase
 
     /**
      * @return void
-     * @covers \VSHF\Bus\Bus::addMiddleware
-     * @covers \VSHF\Bus\Bus::sortArrayByPriority
      */
+
     public function testAddMiddlewarePriority(): void
     {
         $bus = new Bus();
@@ -84,7 +85,6 @@ class BusTest extends TestCase
 
     /**
      * @return void
-     * @covers \VSHF\Bus\Bus::dispatch
      */
     public function testDispatchAuto(): void
     {
@@ -95,49 +95,45 @@ class BusTest extends TestCase
 
     /**
      * @return void
-     * @covers \VSHF\Bus\Bus::dispatch
      */
     public function testDispatchSubscribed(): void
     {
         $bus     = new Bus();
         $command = new MyOtherCommand();
-        $bus->subscribe(MyOtherCommand::class, MyAltOtherCommandHandler::class);
+        $bus->subscribeCommand(MyOtherCommand::class, MyAltOtherCommandCommandHandler::class);
         $this->assertTrue($bus->dispatch($command));
     }
 
     /**
      * @return void
-     * @covers \VSHF\Bus\Bus::dispatch
      */
     public function testDispatchWithMiddleware(): void
     {
         $bus     = new Bus();
         $command = new MyCommand();
-        $this->middleware->allows('isNext')->andReturnTrue();
-        $bus->addMiddleware(Middleware::class);
-
+        $bus->addMiddleware(MyMiddleware::class);
         $this->assertTrue($bus->dispatch($command));
+        $this->assertTrue(MyMiddleware::$beforeCalled);
+        $this->assertTrue(MyMiddleware::$afterCalled);
     }
 
     /**
      * @return void
-     * @covers \VSHF\Bus\Bus::dispatch
      */
     public function testDispatchWithMiddlewareBlocking(): void
     {
         $bus     = new Bus();
         $command = new MyCommand();
-        $this->middleware->expects('isNext')->andReturnFalse();
-        $bus->addMiddleware(Middleware::class);
-
+        $bus->addMiddleware(MyMiddleware::class);
+        MyMiddleware::$mustBlock = true;
         $this->assertFalse($bus->dispatch($command));
     }
 
     public function setUp(): void
     {
-        $this->middleware = \Mockery::mock('overload:VSHF\Bus\Middleware');
-        $this->middleware->allows('before')->andReturnNull();
-        $this->middleware->allows('after')->andReturnNull();
+        MyMiddleware::$beforeCalled = false;
+        MyMiddleware::$afterCalled  = false;
+        MyMiddleware::$mustBlock  = false;
     }
 
     public function tearDown(): void

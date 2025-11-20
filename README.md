@@ -1,27 +1,61 @@
-## VSHF PHP Command Bus
+# VSHF PHP Command Bus
 
-A very simple command bus for PHP
+A lightweight and expressive Command/Query Bus for PHP.
+
+## Installation
+
+```bash
+composer require vshf/php-command-bus
+```
 
 ## Usage
+
 Instantiate the Bus instance:
+
 ```php
 $bus = new \VSHF\Bus\Bus();
 ```
 
-To execute a command:
+### Commands
+
+Dispatching a command:
+
 ```php
 $command = new MyCommand($someParamsIfAny);
 
 $bus->dispatch($command);
 ```
 
-Each command class should have a corresponding handler class located in the same directory/namespace.
+Each command must have a corresponding handler in the same namespace:
 
-For instance, if you have a custom command named *MyCommand.php*, you should also include a *MyCommandHandler.php* file in the same directory/namespace. This allows the bus to call the appropriate handler for the command.
+```
+MyCommand.php
+MyCommandHandler.php
+```
+
+### Queries
+
+The bus supports query handlers via ```ask()```:
+
+```php
+$result = $bus->ask(new GetUserQuery($id));
+```
+
+Query handlers must implement ```QueryHandlerInterface```, and the query class must declare its expected result type:
+
+```php
+public function getResultType(): string
+{
+    return User::class;
+}
+```
+
+The bus validates the returned type at runtime.
 
 ## Middleware
 
-To register a middleware class:
+Registering a middleware:
+
 ```php
 $bus->addMiddleware(MyMiddleware::class);
 ```
@@ -33,32 +67,125 @@ class MyMiddleware implements \VSHF\Bus\MiddlewareInterface {
 
     public function before() : void
     {
-        // Code that runs before executing the command. It has access to:
-        //  $this->$command
+        //  You can access:
+        //  $this->$command or $this->query
         //  $this->agent_type
         //  $this->agent_id
         
-        $this->next(); // If this call is omitted, the command execution is prevented.
+        $this->next(); // Omit this to stop command/query execution.
     }
     
     public function after() : void
     {
-        // Code that runs after executing the command. It has access to:
-        //  $this->$command
+        //  Runs after the handler.
+        //
+        //  You can access:
+        //  $this->$command or $this->query
         //  $this->agent_type
         //  $this->agent_id
     }
 }
 ```
 
-If you have multiple middleware classes and need to define their execution order, you can specify a priority for each middleware. This is useful, for example, when a middleware should be executed at the end of the middleware chain:
+### Middleware Priority
+
+Higher values = later execution:
 
 ```php
-// greater number means delayed execution, default is 0
-
 $bus->addMiddleware(MyMiddleware::class, 99);
 ```
 
-## License
+## Subscriptions
+
+Handlers can be explicitly registered:
+
+```php
+$bus->subscribeCommand(MyCommand::class, MyCommandHandler::class);
+$bus->subscribeQuery(GetUserQuery::class, GetUserQueryHandler::class);
+```
+
+Retrieve them:
+
+```php
+$bus->getCommandSubscriptions();
+$bus->getQuerySubscriptions();
+```
+
+## Breaking Changes (v2.0)
+Version 2.0 introduces several important updates:
+
+### 1. Middleware ```after()``` now receives the handler result
+
+Old:
+
+```php
+public function after(): void
+```
+
+New:
+```php
+public function after($result = null): void
+```
+
+All middleware implementations must update their method signature.
+
+### 2. Full Query Bus Support
+
+A complete query pipeline has been added:
+
+- New method: ask()
+- Query subscriptions
+- Query handler interfaces
+- Result type validation
+- Middleware support for queries 
+
+Older patterns are not compatible.
+
+### 3. ```getSubscriptions()``` removed
+Replaced by explicit methods:
+
+- ```getCommandSubscriptions()```
+- ```getQuerySubscriptions()```
+
+# Changelog
+
+## [2.0.0] — 2025-11-20
+
+Major release with breaking changes and new features.
+
+### Added
+- **Query Bus Support**
+    - New `ask()` method.
+    - Introduced `QueryInterface` and `QueryHandlerInterface`.
+    - Added query subscriptions via `subscribeQuery()`.
+    - Query handlers validated against the expected return type using `getResultType()`.
+
+- **Middleware Enhancements**
+    - Middleware `after()` now receives the handler result.
+    - Middleware is executed for both commands and queries.
+
+- **New Introspection Methods**
+    - `getCommandSubscriptions()`
+    - `getQuerySubscriptions()`
+    - `getMiddlewares()` (sorted by priority)
+
+### Changed (Breaking)
+- **Middleware signature change**
+    - `after()` must now be declared as:
+      ```php
+      public function after($result = null): void
+      ```
+
+### Removed
+- Implicit query behavior from v1 (no longer compatible).
+- Deprecated `getSubscriptions()`.
+
+### Migration Notes
+- Update all middleware implementations to the new `after($result = null)` signature.
+- Replace any use of `getSubscriptions()` with:
+    - `getCommandSubscriptions()`
+    - `getQuerySubscriptions()`
+
+# License
 
 This project is open-sourced software licensed under the [MIT license](https://opensource.org/MIT)
