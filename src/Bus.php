@@ -193,9 +193,24 @@ class Bus implements BusInterface
 
             $expectedType = $query->getResultType();
 
-            if (!$result instanceof $expectedType) {
+            $isValidType = match($expectedType) {
+                'array' => is_array($result),
+                'string' => is_string($result),
+                'int', 'integer' => is_int($result),
+                'float', 'double' => is_float($result),
+                'bool', 'boolean' => is_bool($result),
+                'null' => is_null($result),
+                'mixed' => true,
+                default => $result instanceof $expectedType
+            };
+
+            if (!$isValidType) {
+                $actualType = is_object($result)
+                    ? get_class($result)
+                    : gettype($result);
+
                 throw new \RuntimeException(
-                    "Query Handler returned wrong type. Expected {$expectedType}, got " . get_class($result)
+                    "Query Handler returned wrong type. Expected {$expectedType}, got {$actualType}"
                 );
             }
 
