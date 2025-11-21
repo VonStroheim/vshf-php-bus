@@ -1,7 +1,6 @@
 {
   "name": "vshf/php-bus",
   "description": "Simple PHP command-bus/query-bus system",
-  "version": "2.0.0",
   "type": "library",
   "keywords": [
     "php",
